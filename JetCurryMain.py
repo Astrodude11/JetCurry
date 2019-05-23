@@ -37,6 +37,7 @@ import argparse
 import glob
 import JetCurryGui
 from JetCurryLogger import write_log
+import itertools
 
 
 # Create command line argument parser
@@ -94,17 +95,20 @@ for file in files:
     filename = os.path.splitext(file)[0]
     filename = os.path.basename(filename)
     output_directory = output_directory_default + filename + '/'
+
+    # create output directory
+    # if directory already exists, append name with _N
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
+    else:
+        for i in itertools.count(1):
+            output_directory = output_directory_default + filename + '_' + str(i) + '/'
+            if not os.path.exists(output_directory):
+                os.makedirs(output_directory)
+                break
 
     # create log file
-    # if log file already exists, append filename with _N 
     log_filename = output_directory + filename + '.log'
-    if os.path.isfile(log_filename):
-        for x in range(1,11):
-            log_filename = output_directory + filename + '_' + str(x) + '.log'
-            if not os.path.isfile(log_filename):
-                break
 
     curry = JetCurryGui.JetCurryGui(file)
     upstream_bounds = np.array(
@@ -117,7 +121,7 @@ for file in files:
         os.sys.exit()
 
     write_log(log_filename, 'info', 'Using filename: ' + filename + '.fits', args.debug)
-    write_log(log_filename, 'info', 'Output directory set to ' + output_directory_default, args.debug)
+    write_log(log_filename, 'info', 'Output directory set to ' + output_directory, args.debug)
     write_log(log_filename, 'info', 'Upstream bound is: ' + str(upstream_bounds), args.debug)
     write_log(log_filename, 'info', 'Downstream bound is: ' + str(downstream_bounds), args.debug)
     
