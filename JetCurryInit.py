@@ -21,6 +21,7 @@ def check_modules():
             'argparse',
             'glob',
             'PIL',
+            'itertools',
             tk]
 
   '''
