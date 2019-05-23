@@ -1,5 +1,5 @@
 '''
-Copyright 2017, Katie Kosak, Eric Perlman
+Copyright 2017, Andrew Colson, Katie Kosak, Eric Perlman
 JETCURRY is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -15,10 +15,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 __author__ = "Katie Kosak"
 __email__ = "katie.kosak@gmail.com"
-__credits__ = ["KunYang Li", "Dr. Eric Perlman", "Dr.Sayali Avachat"]
+__credits__ = ["KunYang Li", "Dr. Eric Perlman", "Dr.Sayali Avachat", "Andrew Colson"]
 __status__ = "production"
-import imp
+
 import os
+import JetCurryInit
+
+# Prints any missing modules and exits. Otherwise, continue.
+requiredModules = JetCurryInit.check_modules()
+if requiredModules:
+    print('Module(s) ' + ', '.join(requiredModules) + ' not installed')
+    os.sys.exit()
+
 from astropy.io import fits
 import numpy as np
 import matplotlib
@@ -28,80 +36,53 @@ import JetCurry as jet
 import argparse
 import glob
 import JetCurryGui
+from JetCurryLogger import write_log
 
-
-# Required modules
-MODULES = ['emcee',
-           'multiprocessing',
-           'scipy',
-           'numpy',
-           'astropy',
-           'matplotlib',
-           'math',
-           'numpy',
-           'pylab',
-           'argparse',
-           'glob']
-
-'''
-Try to import required modules.
-If a module can't be imported then print module name and exit
-'''
-MISSING_MODULES = []
-
-for module in MODULES:
-    try:
-        imp.find_module(module)
-    except BaseException:
-        MISSING_MODULES.append(module)
-
-if MISSING_MODULES:
-    print('Modules ' + ', '.join(MISSING_MODULES) + ' not installed')
-    os.sys.exit()
 
 # Create command line argument parser
-PARSER = argparse.ArgumentParser(description="Jet Curry")
-PARSER.add_argument('input', help='file or folder name')
-PARSER.add_argument('-out_dir', help='output directory path')
-ARGS = PARSER.parse_args()
+parser = argparse.ArgumentParser(description="Jet Curry")
+parser.add_argument('input', help='file or folder name')
+parser.add_argument('-out_dir', help='output directory path')
+parser.add_argument('-debug', help='console logger', action='store_true')
+args = parser.parse_args()
 
 '''
 Determine whether input is a single file or directory
 Create list of FITS files for processing
 '''
-FILES = []
-if os.path.isfile(ARGS.input):
+files = []
+if os.path.isfile(args.input):
     try:
-        fits.PrimaryHDU.readfrom(ARGS.input)
-        FILES.append(ARGS.input)
+        fits.PrimaryHDU.readfrom(args.input)
+        files.append(args.input)
     except BaseException:
-        print('%s is not a valid FITS file!' % ARGS.input)
+        print('%s is not a valid FITS file!' % args.input)
         os.sys.exit()
 else:
-    if os.path.exists(ARGS.input):
-        for file in glob.glob(ARGS.input + '/*.fits'):
+    if os.path.exists(args.input):
+        for file in glob.glob(args.input + '/*.fits'):
             try:
                 fits.PrimaryHDU.readfrom(file)
-                FILES.append(file)
+                files.append(file)
             except BaseException:
                 print('%s is not a valid FITS file!' % file)
     else:
         print('Input directory does not exist!')
 
 # Create output directory if it doesn't exitst
-if ARGS.out_dir is not None:
-    if not os.path.exists(ARGS.out_dir):
+if args.out_dir is not None:
+    if not os.path.exists(args.out_dir):
         try:
-            os.makedirs(ARGS.out_dir)
+            os.makedirs(args.out_dir)
         except BaseException:
-            print('%s does not exist and cannot be created' % ARGS.out_dir)
+            print('%s does not exist and cannot be created' % args.out_dir)
 else:
-    ARGS.out_dir = os.getcwd()
+    args.out_dir = os.getcwd()
 
-if ARGS.out_dir[-1] == '/':
-    OUTPUT_DIRECTORY_DEFAULT = ARGS.out_dir
+if args.out_dir[-1] == '/':
+    output_directory_default = args.out_dir
 else:
-    OUTPUT_DIRECTORY_DEFAULT = ARGS.out_dir + '/'
+    output_directory_default = args.out_dir + '/'
 
 np.seterr(all='ignore')
 S = []
@@ -109,31 +90,80 @@ ETA = []
 # Line of Sight (radians)
 THETA = 0.261799388
 
-
-for file in FILES:
+for file in files:
     filename = os.path.splitext(file)[0]
     filename = os.path.basename(filename)
-    OUTPUT_DIRECTORY = OUTPUT_DIRECTORY_DEFAULT + filename + '/'
-    if not os.path.exists(OUTPUT_DIRECTORY):
-        os.makedirs(OUTPUT_DIRECTORY)
+    output_directory = output_directory_default + filename + '/'
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    # create log file
+    # if log file already exists, append filename with _N 
+    log_filename = output_directory + filename + '.log'
+    if os.path.isfile(log_filename):
+        for x in range(1,11):
+            log_filename = output_directory + filename + '_' + str(x) + '.log'
+            if not os.path.isfile(log_filename):
+                break
 
     curry = JetCurryGui.JetCurryGui(file)
-    UPSTREAM_BOUNDS = np.array(
+    upstream_bounds = np.array(
         [curry.x_start_variable.get(), curry.y_start_variable.get()])
-    DOWNSTREAM_BOUNDS = np.array(
+    downstream_bounds = np.array(
         [curry.x_end_variable.get(), curry.y_end_variable.get()])
-    NUMBER_OF_POINTS = DOWNSTREAM_BOUNDS[0] - UPSTREAM_BOUNDS[0]
 
+    if (not np.any(upstream_bounds) or not np.any(downstream_bounds)):
+        print('Please select upstream and downstream bounds')
+        os.sys.exit()
+
+    write_log(log_filename, 'info', 'Using filename: ' + filename + '.fits', args.debug)
+    write_log(log_filename, 'info', 'Output directory set to ' + output_directory_default, args.debug)
+    write_log(log_filename, 'info', 'Upstream bound is: ' + str(upstream_bounds), args.debug)
+    write_log(log_filename, 'info', 'Downstream bound is: ' + str(downstream_bounds), args.debug)
+    
     pixel_min = np.nanmin(curry.fits_data)
     pixel_max = np.nanmax(curry.fits_data)
 
     # Square Root Scaling for fits image
-    data = jet.imagesqrt(curry.fits_data, pixel_min, pixel_max)
+    try:
+        data = jet.imagesqrt(curry.fits_data, pixel_min, pixel_max)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'Failed to create square root image of data:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'Created square root image of data:', args.debug)
+        write_log(log_filename, 'info', str(data) + '\n', args.debug)
+
+    number_of_points = downstream_bounds[0] - upstream_bounds[0]
+    if number_of_points > 0:
+        write_log(log_filename, 'info', 'Number of sample points: ' +  str(number_of_points), args.debug)
+    else:
+        write_log(log_filename, 'critical', 'The number of sample points must be positive: ' + str(number_of_points), args.debug)
+        os.sys.exit()
+
     plt.imshow(data)
 
     # Go column by column to calculate the max flux for each column
-    x, y, x_smooth, y_smooth, intensity_max = jet.Find_MaxFlux(
-        data, UPSTREAM_BOUNDS, DOWNSTREAM_BOUNDS, NUMBER_OF_POINTS)
+    try:
+        x, y, x_smooth, y_smooth, intensity_max = jet.Find_MaxFlux(
+            data, upstream_bounds, downstream_bounds, number_of_points)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'Failed to calculate the max intensity:', args.debug)
+        write_log(log_filename, 'critical', e , args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'Successfully calculated the max intensities', args.debug)
+        write_log(log_filename, 'info', 'Max intensity at point x:', args.debug)
+        write_log(log_filename, 'info', str(x) + '\n', args.debug)
+        write_log(log_filename, 'info', 'Max intensity at point y:', args.debug)
+        write_log(log_filename, 'info', str(y) + '\n', args.debug)
+        write_log(log_filename, 'info', 'Smoothed sample points calculated over the start/stop interval:', args.debug)
+        write_log(log_filename, 'info', str(x_smooth) + '\n', args.debug)
+        write_log(log_filename, 'info', 'Interpolated curve using spline fit:', args.debug)
+        write_log(log_filename, 'info', str(y_smooth) + '\n', args.debug)
+        write_log(log_filename, 'info', 'Max intensity at each column:', args.debug)
+        write_log(log_filename, 'info', str(intensity_max) + '\n', args.debug)
 
     # Plot the Max Flux over the Image
     plt.contour(data, 10, cmap='gray')
@@ -143,24 +173,76 @@ for file in FILES:
     ax = plt.gca()
     ax.invert_yaxis()
     # plt.show()
-    plt.savefig(OUTPUT_DIRECTORY + filename + '_contour.png')
+    plt.savefig(output_directory + filename + '_contour.png')
     plt.clf()
 
     # Calculate the s and eta values
     # s,eta, x_smooth,y_smooth values will
     # be stored in parameters.txt file
-
-    S, ETA = jet.Calculate_s_and_eta(
-        x_smooth, y_smooth, UPSTREAM_BOUNDS, OUTPUT_DIRECTORY, filename)
+    try:
+        S, ETA = jet.Calculate_s_and_eta(
+            x_smooth, y_smooth, upstream_bounds, output_directory, filename)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'Failed to calculate S and ETA:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+    else:
+        write_log(log_filename, 'info', 'Calculated S:', args.debug)
+        write_log(log_filename, 'info', str(S) + '\n', args.debug)
+        write_log(log_filename, 'info', 'Calculated ETA:', args.debug)
+        write_log(log_filename, 'info', str(ETA) + '\n', args.debug)
 
     # Run the First MCMC Trial in Parallel
-    jet.MCMC1_Parallel(S, ETA, THETA, OUTPUT_DIRECTORY, filename)
-    jet.MCMC2_Parallel(S, ETA, THETA, OUTPUT_DIRECTORY, filename)
+    try:
+        jet.MCMC1_Parallel(S, ETA, THETA, output_directory, filename)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'MCMC1_Parallel failed:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'MCM1_Parallel passed', args.debug)
+
+    try:
+        jet.MCMC2_Parallel(S, ETA, THETA, output_directory, filename)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'MCMC2_Parallel failed:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'MCMC2_Parallel passed', args.debug)
+
     # Run Simulated Annealing to guarantee Real Solution
-    jet.Annealing1_Parallel(S, ETA, THETA, OUTPUT_DIRECTORY, filename)
-    jet.Annealing2_Parallel(S, ETA, THETA, OUTPUT_DIRECTORY, filename)
-    x_coordinates, y_coordinates, z_coordinates = jet.Convert_Results_Cartesian(
-        S, ETA, THETA, OUTPUT_DIRECTORY, filename)
+    try:
+        jet.Annealing1_Parallel(S, ETA, THETA, output_directory, filename)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'Annealing1_Parallel failed:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'Annealing1_Parallel passed', args.debug)
+
+    try:
+        jet.Annealing2_Parallel(S, ETA, THETA, output_directory, filename)
+    except:
+        write_log(log_filename, 'critical', 'Annealing2_Parallel failed:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'Annealing2_Parallel passed', args.debug)
+
+    try:
+        x_coordinates, y_coordinates, z_coordinates = jet.Convert_Results_Cartesian(
+            S, ETA, THETA, output_directory, filename)
+    except Exception as e:
+        write_log(log_filename, 'critical', 'Failed to convert cartesian coordinates:', args.debug)
+        write_log(log_filename, 'critical', e, args.debug)
+        os.sys.exit()
+    else:
+        write_log(log_filename, 'info', 'x coordinates:', args.debug)
+        write_log(log_filename, 'info', str(x_coordinates) + '\n', args.debug)
+        write_log(log_filename, 'info', 'y coordinates:', args.debug)
+        write_log(log_filename, 'info', str(y_coordinates) + '\n', args.debug)
+        write_log(log_filename, 'info', 'z coordinates:', args.debug)
+        write_log(log_filename, 'info', str(z_coordinates) + '\n', args.debug)
 
     # Plot the Results on Image
     plt.scatter(x_coordinates, y_coordinates, c='y')
@@ -168,5 +250,7 @@ for file in FILES:
     ax = plt.gca()
     ax.invert_yaxis()
     # plt.show()
-    plt.savefig(OUTPUT_DIRECTORY + filename + '_sim.png')
+    plt.savefig(output_directory + filename + '_sim.png')
     plt.clf()
+
+    write_log(log_filename, 'info', 'Jet Curry successful for ' + filename + '.fits' + '\n', args.debug)
