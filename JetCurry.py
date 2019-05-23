@@ -29,7 +29,7 @@ np.seterr(all='ignore')
 def imagesqrt(image, scale_min, scale_max):
     '''
     Algorithm Courtesy of Min-Su Shin (msshin @ umich.edu)
-    Modified by Katie Kosak 07/02/2015 to fit the needsof Hubble Data for
+    Modified by Katie Kosak 07/02/2015 to fit the needs of Hubble Data for
     Dr. Perlman and Dr. Avachat.
 
     Arguments:
@@ -264,7 +264,7 @@ def RunMCMC2(s, eta, d0, theta, a, b, c, e, ind, output_directory, filename):
                         init.append(initial_d[m])
                         pos.append(init)
 
-    ndim, nwalkers, nsteps = 5, float(shape(pos)[0]), 50
+    ndim, nwalkers, nsteps = 5, int(shape(pos)[0]), 50
 
     def lnlike(v):
         '''
