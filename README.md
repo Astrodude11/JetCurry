@@ -2,9 +2,9 @@
 
 Models the 3D geometry of AGN jets.
 
-JetCurry, Copyright 2017. Katie Kosak. Eric Perlman. Copyright Details: GPL.txt
+JetCurry, Copyright 2017. Andrew Colson. Katie Kosak. Eric Perlman. Copyright Details: GPL.txt
 
-Last Edited: March 2018. Questions: Contact Katie Kosak,  [katie.kosak@gmail.com](mailto:katie.kosak@gmail.com)
+Last Edited: May 2019. Questions: Contact Katie Kosak,  [katie.kosak@gmail.com](mailto:katie.kosak@gmail.com)
 
 
 ## Usage
@@ -17,12 +17,16 @@ python JetCurryMain.py input [-out_dir]
 
 **Optional arguments** 
 
-**-out\_dir**: full or relative path to save output files.  Output directory is created if it doesn't exist. Default output is current working directory if -out\_dir is not specified. 
+**-out\_dir**: full or relative path to save output files.  Output directory is created if it doesn't exist. If it already exists then the full path is appended with "\_N" where N is 1 through infinity. Default output is current working directory if -out\_dir is not specified.
+
+**-debug**: enables logging to the console and logfile. Default behavior is to only log to the logfile saved as "inputfilename.log". The logfile is saved to the default or specified output directory. 
 
 **Example**
-> python JetCurryMain.py ./KnotD\_Radio.fits
+> python JetCurryMain.py ./KnotD\_Radio.fits # processes single FITS file and saves data products to the current working directory
 
->  python JetCurryMain.py ./data -out_dir /foo/bar/
+> python JetCurryMain.py ./data -out_dir /foo/bar/ # processes entire ./data directory with data products saved to specified output directory
+
+> python JetCurryMain.py ./KnotD\_Radio.fits -debug # processes single FITS file and logs information to the console and to KnotD\_Radio.log
 
 ## Notes
 
@@ -32,4 +36,4 @@ Data products are organized by the FITS filename. For example, if the output dir
 
 ## TODO
 
-Optimize with cython or numba.
+scipy.interpolate.spline is depreciated in newer versions of SciPy.
