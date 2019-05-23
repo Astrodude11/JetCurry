@@ -1,5 +1,8 @@
 import os
-import tkinter as tk
+try:
+    import tkinter as tk # python 3
+except ImportError:
+    import Tkinter as tk # python 2
 from PIL import Image, ImageTk
 from astropy.io import fits
 import matplotlib
